@@ -1,11 +1,18 @@
 package com.example.android.unscramble.ui.game
 
+import android.text.Spannable
+import android.text.SpannableString
+import android.text.style.TtsSpan
+import androidx.constraintlayout.widget.ConstraintSet.Transform
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.Transformations
 import androidx.lifecycle.ViewModel
 
 class GameViewModel: ViewModel() {
-    private var _score = 0
-    private var _currentWordCount = 0
-    private lateinit var _currentScrambledWord: String
+    private var _score = MutableLiveData(0)
+    private var _currentWordCount = MutableLiveData(0)
+    private val _currentScrambledWord = MutableLiveData<String>()
     private var _count = 0
     private var wordsList: MutableList<String> = mutableListOf()
     private lateinit var currentWord: String
@@ -13,14 +20,28 @@ class GameViewModel: ViewModel() {
     val count: Int
        get() = _count
 
-    val score: Int
+    val score: LiveData<Int>
         get() = _score
 
-    val currentWordCount: Int
+    val currentWordCount: LiveData<Int>
         get() = _currentWordCount
 
-    val currentScrambledWord: String
-        get() = _currentScrambledWord
+    val currentScrambledWord: LiveData<Spannable> = Transformations.map(_currentScrambledWord) {
+        if(it == null){
+            SpannableString("")
+        } else {
+            val scrambleWord = it.toString()
+            val spannable: Spannable = SpannableString(scrambleWord)
+            spannable.setSpan(
+                TtsSpan.VerbatimBuilder(scrambleWord).build(),
+                0,
+                scrambleWord.length,
+                Spannable.SPAN_INCLUSIVE_INCLUSIVE
+            )
+            spannable
+        }
+    }
+
 
 
     init {
@@ -37,21 +58,21 @@ class GameViewModel: ViewModel() {
         if(wordsList.contains(currentWord)){
             getNextWord()
         } else {
-            _currentScrambledWord = String(tempWord)
-            ++_currentWordCount
+            _currentScrambledWord.value = String(tempWord)
+            _currentWordCount.value = _currentWordCount.value!! + 1
             wordsList.add(currentWord)
         }
     }
 
     fun nextWord(): Boolean {
-        return  if(currentWordCount < MAX_NO_OF_WORDS){
+        return  if(currentWordCount.value!! < MAX_NO_OF_WORDS){
             getNextWord()
             true
         }else false
     }
 
     private fun increaseScore() {
-        _score += SCORE_INCREASE
+        _score.value = _score.value!! + SCORE_INCREASE
     }
 
     fun isUserWordCorrect(playerWord: String): Boolean {
@@ -66,8 +87,8 @@ class GameViewModel: ViewModel() {
 * Re-initializes the game data to restart the game.
 */
     fun reinitializeData() {
-        _score = 0
-        _currentWordCount = 0
+        _score.value = 0
+        _currentWordCount.value = 0
         wordsList.clear()
         getNextWord()
     }
